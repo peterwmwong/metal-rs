@@ -7,6 +7,7 @@
 
 use super::*;
 
+use foreign_types::ForeignTypeRef;
 use objc::runtime::{NO, YES};
 
 #[repr(u64)]
@@ -240,6 +241,13 @@ foreign_obj_type! {
 impl BindingArrayRef {
     pub fn object_at(&self, index: NSUInteger) -> Option<&BindingRef> {
         unsafe { msg_send![self, objectAtIndexedSubscript: index] }
+    }
+
+    pub fn object_at_as<T>(&self, index: NSUInteger) -> Option<&T>
+    where
+        T: ::std::ops::Deref<Target = BindingRef> + ForeignTypeRef,
+    {
+        self.object_at(index).and_then(|o| o.as_subprotocol())
     }
 
     pub fn count(&self) -> NSUInteger {

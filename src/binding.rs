@@ -1,7 +1,7 @@
-use crate::{MTLDataType, MTLStructType};
-
-use super::{MTLArgumentAccess, NSUInteger};
-use objc::runtime::{NO, YES};
+use super::{MTLArgumentAccess, MTLDataType, MTLStructType, NSUInteger};
+use foreign_types::{ForeignType, ForeignTypeRef};
+use objc::runtime::{objc_getClass, Object, Protocol, NO, YES};
+use std::any::type_name;
 
 #[repr(i64)]
 #[allow(non_camel_case_types)]
@@ -77,6 +77,31 @@ impl BindingRef {
             }
         }
     }
+
+    #[inline]
+    pub unsafe fn as_subprotocol_unchecked<T>(&self) -> &T
+    where
+        T: ::std::ops::Deref<Target = BindingRef> + ForeignTypeRef,
+    {
+        T::from_ptr(self.as_ptr() as _)
+    }
+
+    pub fn as_subprotocol<T>(&self) -> Option<&T>
+    where
+        T: ::std::ops::Deref<Target = BindingRef> + ForeignTypeRef,
+    {
+        let protocol_name: &'static str =
+            &type_name::<<Binding as ForeignType>::CType>()[(module_path!().len() + 2/* :: */)..];
+        if let Some(protocol) = Protocol::get(protocol_name) {
+            let c = unsafe { (&*(self.as_ptr() as *const Object)).class() };
+            if !c.conforms_to(protocol) {
+                return None;
+            }
+        } else {
+            return None;
+        }
+        Some(unsafe { self.as_subprotocol_unchecked() })
+    }
 }
 
 pub struct MTLBufferBinding {}
@@ -85,7 +110,7 @@ foreign_obj_type! {
     type CType = MTLBufferBinding;
     pub struct BufferBinding;
     pub struct BufferBindingRef;
-    type ParentType = MTLBinding;
+    type ParentType = BindingRef;
 }
 
 impl BufferBindingRef {
