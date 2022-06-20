@@ -207,6 +207,44 @@ impl RenderPipelineReflectionRef {
     pub fn tile_arguments(&self) -> &ArgumentArrayRef {
         unsafe { msg_send![self, tileArguments] }
     }
+
+    pub fn fragment_bindings(&self) -> &BindingArrayRef {
+        unsafe { msg_send![self, fragmentBindings] }
+    }
+
+    pub fn mesh_bindings(&self) -> &BindingArrayRef {
+        unsafe { msg_send![self, meshBindings] }
+    }
+
+    pub fn object_bindings(&self) -> &BindingArrayRef {
+        unsafe { msg_send![self, objectBindings] }
+    }
+
+    pub fn tile_bindings(&self) -> &BindingArrayRef {
+        unsafe { msg_send![self, tileBindings] }
+    }
+
+    pub fn vertex_bindings(&self) -> &BindingArrayRef {
+        unsafe { msg_send![self, vertexBindings] }
+    }
+}
+
+pub enum MTLBindingArray {}
+
+foreign_obj_type! {
+    type CType = MTLBindingArray;
+    pub struct BindingArray;
+    pub struct BindingArrayRef;
+}
+
+impl BindingArrayRef {
+    pub fn object_at(&self, index: NSUInteger) -> Option<&BindingRef> {
+        unsafe { msg_send![self, objectAtIndexedSubscript: index] }
+    }
+
+    pub fn count(&self) -> NSUInteger {
+        unsafe { msg_send![self, count] }
+    }
 }
 
 pub enum MTLArgumentArray {}

@@ -454,6 +454,7 @@ impl MetalLayerRef {
 }
 
 mod argument;
+mod binding;
 mod buffer;
 mod capturedescriptor;
 mod capturemanager;
@@ -481,6 +482,7 @@ mod vertexdescriptor;
 #[rustfmt::skip]
 pub use {
     argument::*,
+    binding::*,
     buffer::*,
     capturedescriptor::*,
     capturemanager::*,
