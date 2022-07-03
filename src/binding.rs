@@ -1,6 +1,6 @@
-use super::{MTLArgumentAccess, MTLDataType, MTLStructType, NSUInteger};
+use super::{MTLArgumentAccess, MTLDataType, MTLStructType, MTLTextureType, NSUInteger};
 use foreign_types::{ForeignType, ForeignTypeRef};
-use objc::runtime::{objc_getClass, Object, Protocol, NO, YES};
+use objc::runtime::{Object, Protocol, NO, YES};
 use std::any::type_name;
 
 #[repr(i64)]
@@ -133,5 +133,38 @@ impl BufferBindingRef {
 
     pub fn buffer_struct_type(&self) -> Option<MTLStructType> {
         unsafe { msg_send![self, bufferStructType] }
+    }
+}
+
+pub struct MTLTextureBinding {}
+
+foreign_obj_type! {
+    type CType = MTLTextureBinding;
+    pub struct TextureBinding;
+    pub struct TextureBindingRef;
+    type ParentType = BindingRef;
+}
+
+impl TextureBindingRef {
+    pub fn array_length(&self) -> NSUInteger {
+        unsafe { msg_send![self, arrayLength] }
+    }
+
+    pub fn is_depth_texture(&self) -> bool {
+        unsafe {
+            match msg_send![self, isDepthTexture] {
+                YES => true,
+                NO => false,
+                _ => unreachable!(),
+            }
+        }
+    }
+
+    pub fn texture_data_type(&self) -> MTLDataType {
+        unsafe { msg_send![self, textureDataType] }
+    }
+
+    pub fn texture_type(&self) -> MTLTextureType {
+        unsafe { msg_send![self, textureType] }
     }
 }
