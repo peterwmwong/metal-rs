@@ -2114,4 +2114,48 @@ impl DeviceRef {
     pub fn max_buffer_length(&self) -> NSUInteger {
         unsafe { msg_send![self, maxBufferLength] }
     }
+
+    pub fn new_io_handle(
+        &self,
+        url: URL,
+        compression_method: MTLIOCompressionMethod,
+    ) -> Result<IOFileHandle, String> {
+        unsafe {
+            let mut err: *mut Object = ptr::null_mut();
+            let file_handle: *mut MTLIOFileHandle = msg_send![self, newIOHandleWithURL:url
+            compressionMethod:compression_method
+            error:&mut err];
+            if !err.is_null() {
+                // FIXME: copy pasta
+                let desc: *mut Object = msg_send![err, localizedDescription];
+                let compile_error: *const c_char = msg_send![desc, UTF8String];
+                let message = CStr::from_ptr(compile_error).to_string_lossy().into_owned();
+                Err(message)
+            } else {
+                Ok(IOFileHandle::from_ptr(file_handle))
+            }
+        }
+    }
+
+    pub fn new_io_command_queue(
+        &self,
+        descriptor: &IOCommandQueueDescriptorRef,
+    ) -> Result<IOCommandQueue, String> {
+        unsafe {
+            let mut err: *mut Object = ptr::null_mut();
+            let command_queue: *mut MTLIOCommandQueue = msg_send![self,
+                newIOCommandQueueWithDescriptor:descriptor
+                error:&mut err
+            ];
+            if !err.is_null() {
+                // FIXME: copy pasta
+                let desc: *mut Object = msg_send![err, localizedDescription];
+                let compile_error: *const c_char = msg_send![desc, UTF8String];
+                let message = CStr::from_ptr(compile_error).to_string_lossy().into_owned();
+                Err(message)
+            } else {
+                Ok(IOCommandQueue::from_ptr(command_queue))
+            }
+        }
+    }
 }
