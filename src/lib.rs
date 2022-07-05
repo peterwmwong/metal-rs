@@ -467,6 +467,7 @@ mod drawable;
 mod encoder;
 mod heap;
 mod indirect_encoder;
+mod io;
 mod library;
 #[cfg(feature = "mps")]
 mod mps;
@@ -494,6 +495,7 @@ pub use {
     drawable::*,
     encoder::*,
     heap::*,
+    io::*,
     indirect_encoder::*,
     library::*,
     pipeline::*,
