@@ -4,6 +4,16 @@ use super::{MTLOrigin, MTLSize, NSUInteger, TextureRef};
 use std::ffi::{c_void, CString};
 use std::os::raw::c_char;
 
+#[allow(non_camel_case_types)]
+#[repr(u64)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum MTLIOStatus {
+    pending = 0,
+    cancelled = 1,
+    error = 2,
+    complete = 3,
+}
+
 pub enum MTLIOCommandBuffer {}
 
 foreign_obj_type! {
@@ -18,6 +28,10 @@ impl IOCommandBufferRef {
             let label = msg_send![self, label];
             crate::nsstring_as_str(label)
         }
+    }
+
+    pub fn status(&self) -> MTLIOStatus {
+        unsafe { msg_send![self, status] }
     }
 
     pub fn set_label(&self, label: &str) {
@@ -216,6 +230,16 @@ pub struct IOCompression {
 
 #[allow(non_camel_case_types)]
 impl IOCompression {
+    // TODO: Re-implement once macOS 13/xcode 14 releases and API stabilizes
+    // - Currently...
+    //   - In Beta 2, NOT in Documentation: `public let kMTLIOCompressionContextDefaultChunkSize: Int`
+    //   - NOT in Beta 2, In Documentation: `size_t MTLIOCompressionContextDefaultChunkSize(void);`
+    //      - https://developer.apple.com/documentation/metal/4048349-mtliocompressioncontextdefaultch?language=objc
+    //   - HHHHahhahhaahahhhhh.......... whatevs
+    pub fn default_chunk_size() -> NSUInteger {
+        65536
+    }
+
     pub fn new(
         path: &str,
         compression_type: MTLIOCompressionMethod,

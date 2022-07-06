@@ -2,7 +2,6 @@ use metal::*;
 
 const PIXEL_FORMAT: MTLPixelFormat = MTLPixelFormat::RGBA8Unorm;
 const BYTES_PER_PIXELS: u64 = 4; // RGBA
-const COMPRESSION_CHUNK_SIZE: NSUInteger = 256;
 const COMPRESSION_METHOD: MTLIOCompressionMethod = MTLIOCompressionMethod::lz4;
 
 fn load_image_bytes_from_png() -> (Vec<u8>, (u64, u64)) {
@@ -20,7 +19,11 @@ fn load_image_bytes_from_png() -> (Vec<u8>, (u64, u64)) {
 
 fn write_compressed_data(src_data: &[u8], dest_file: &str) {
     println!("Using MTLIO to write an image into a compressed file ({dest_file:?})...");
-    let io = IOCompression::new(dest_file, COMPRESSION_METHOD, COMPRESSION_CHUNK_SIZE);
+    let io = IOCompression::new(
+        dest_file,
+        COMPRESSION_METHOD,
+        IOCompression::default_chunk_size(),
+    );
     io.append(src_data.as_ptr() as _, src_data.len() as _);
     let io_flush_result = io.flush();
     assert_eq!(
@@ -39,7 +42,7 @@ fn read_compressed_data(device: &Device, texture: &TextureRef, src_file: &str) {
     let handle = device
         .new_io_handle(
             URL::new_with_string(&format!("file:///{src_file}")),
-            MTLIOCompressionMethod::lz4,
+            COMPRESSION_METHOD,
         )
         .expect("Failed to get IO file handle");
     let queue = device
@@ -65,6 +68,11 @@ fn read_compressed_data(device: &Device, texture: &TextureRef, src_file: &str) {
     );
     command_buffer.commit();
     command_buffer.wait_until_completed();
+    assert_eq!(
+        command_buffer.status(),
+        MTLIOStatus::complete,
+        "Failed to load texture"
+    );
     println!("... read completed!");
 }
 
