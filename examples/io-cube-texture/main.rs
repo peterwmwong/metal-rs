@@ -51,17 +51,17 @@ fn main() {
         })
     };
 
-    let mut all_src_texture_bytes: [std::mem::MaybeUninit<(Vec<u8>, u64, u64)>; 6] =
+    let mut all_face_texture_bytes_and_sizes: [std::mem::MaybeUninit<(Vec<u8>, u64, u64)>; 6] =
         std::mem::MaybeUninit::uninit_array();
     debug_time("Write Cube Faces", || {
         std::thread::scope(|s| {
             for (face_id, (face_file, t)) in face_files
                 .iter()
-                .zip(&mut all_src_texture_bytes)
+                .zip(&mut all_face_texture_bytes_and_sizes)
                 .enumerate()
             {
                 s.spawn(move || {
-                    let (src_texture_bytes, (img_width, img_height)) =
+                    let (face_texture_bytes, (img_width, img_height)) =
                         debug_time("Read PNG", || load_image_bytes_from_png(face_id));
                     debug_time("MTLIO writing compressed texture", || {
                         let io = IOCompression::new(
@@ -70,8 +70,8 @@ fn main() {
                             IOCompression::default_chunk_size(),
                         );
                         io.append(
-                            src_texture_bytes.as_ptr() as _,
-                            src_texture_bytes.len() as _,
+                            face_texture_bytes.as_ptr() as _,
+                            face_texture_bytes.len() as _,
                         );
                         let io_flush_result = io.flush();
                         assert_eq!(
@@ -80,18 +80,18 @@ fn main() {
                             "Failed to write compressed file"
                         );
                     });
-                    t.write((src_texture_bytes, img_width, img_height));
+                    t.write((face_texture_bytes, img_width, img_height));
                 });
             }
         })
     });
-    let all_src_texture_bytes: [(Vec<u8>, u64, u64); 6] =
-        unsafe { std::mem::MaybeUninit::array_assume_init(all_src_texture_bytes) };
+    let all_face_texture_bytes_and_sizes: [(Vec<u8>, u64, u64); 6] =
+        unsafe { std::mem::MaybeUninit::array_assume_init(all_face_texture_bytes_and_sizes) };
 
     // Verify all cube face textures are the same dimensions
     let mut width = 0;
     let mut height = 0;
-    for &(_, img_width, img_height) in all_src_texture_bytes.iter() {
+    for &(_, img_width, img_height) in all_face_texture_bytes_and_sizes.iter() {
         assert!(
             (width == 0 && img_width > 0) || (width == img_width),
             "Width is invalid, must match other cube face textures"
@@ -124,6 +124,11 @@ fn main() {
                 .expect("Failed to create IO Command Queue")
         };
         let mut command_bufs = vec![];
+
+        // TODO: START HERE
+        // TODO: START HERE
+        // TODO: START HERE
+        // Reproduce this issue in swift and open feedback/forum post
 
         // TODO: Try using only one command once MacOS 13/Xcode 14 is stable
         // - There seems to be a data corruption issue when writing all the faces of a cube texture
@@ -167,8 +172,10 @@ fn main() {
         }
     });
     debug_time("Verifying cube texture contents", || {
-        for (face_id, (src_texture_bytes, _, _)) in all_src_texture_bytes.iter().enumerate() {
-            let mut texture_bytes = vec![0_u8; src_texture_bytes.len()];
+        for (face_id, (face_texture_bytes, _, _)) in
+            all_face_texture_bytes_and_sizes.iter().enumerate()
+        {
+            let mut texture_bytes = vec![0_u8; face_texture_bytes.len()];
             println!("Verifiying face {face_id}");
             texture.get_bytes_in_slice(
                 texture_bytes.as_mut_ptr() as _,
@@ -185,12 +192,12 @@ fn main() {
                 0,
                 face_id as _,
             );
-            if &texture_bytes != src_texture_bytes {
+            if &texture_bytes != face_texture_bytes {
                 println!(
                     "Cube texture face #{} contents are incorrect: {:?} {:?}",
                     face_id,
                     &texture_bytes[0..4],
-                    &src_texture_bytes[0..4],
+                    &face_texture_bytes[0..4],
                 );
             }
         }
