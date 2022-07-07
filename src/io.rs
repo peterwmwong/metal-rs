@@ -23,30 +23,25 @@ foreign_obj_type! {
 }
 
 impl IOCommandBufferRef {
-    pub fn label(&self) -> &str {
-        unsafe {
-            let label = msg_send![self, label];
-            crate::nsstring_as_str(label)
-        }
-    }
-
-    pub fn status(&self) -> MTLIOStatus {
-        unsafe { msg_send![self, status] }
-    }
-
-    pub fn set_label(&self, label: &str) {
-        unsafe {
-            let nslabel = crate::nsstring_from_str(label);
-            let () = msg_send![self, setLabel: nslabel];
-        }
+    pub fn commit(&self) {
+        unsafe { msg_send![self, commit] }
     }
 
     pub fn enqueue(&self) {
         unsafe { msg_send![self, enqueue] }
     }
 
-    pub fn commit(&self) {
-        unsafe { msg_send![self, commit] }
+    pub fn label(&self) -> &str {
+        unsafe {
+            let label = msg_send![self, label];
+            crate::nsstring_as_str(label)
+        }
+    }
+    pub fn set_label(&self, label: &str) {
+        unsafe {
+            let nslabel = crate::nsstring_from_str(label);
+            let () = msg_send![self, setLabel: nslabel];
+        }
     }
 
     pub fn load_buffer(
@@ -93,6 +88,10 @@ impl IOCommandBufferRef {
                 sourceHandleOffset:source_handle_offset
             ]
         }
+    }
+
+    pub fn status(&self) -> MTLIOStatus {
+        unsafe { msg_send![self, status] }
     }
 
     pub fn wait_until_completed(&self) {
@@ -150,12 +149,30 @@ impl IOCommandQueueDescriptor {
             msg_send![class, new]
         }
     }
+}
+
+impl IOCommandQueueDescriptorRef {
+    pub fn max_command_buffer_count(&self) -> NSUInteger {
+        unsafe { msg_send![self, maxCommandBufferCount] }
+    }
+    pub fn set_max_command_buffer_count(&self, count: NSUInteger) {
+        unsafe {
+            let () = msg_send![self, setMaxCommandBufferCount: count];
+        }
+    }
+
+    pub fn max_commands_in_flight(&self) -> NSUInteger {
+        unsafe { msg_send![self, maxCommandsInFlight] }
+    }
+    pub fn set_max_commands_in_flight(&self, count: NSUInteger) {
+        unsafe {
+            let () = msg_send![self, setMaxCommandsInFlight: count];
+        }
+    }
 
     // TODO: Implement!
-    // maxCommandBufferCount: Int
     // priority: MTLIOPriority
     // type: MTLIOCommandQueueType
-    // maxCommandsInFlight: Int
     // scratchBufferAllocator: MTLIOScratchBufferAllocator?
 }
 

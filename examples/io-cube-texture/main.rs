@@ -1,14 +1,21 @@
 use metal::*;
-use std::ops::Range;
 
 const PIXEL_FORMAT: MTLPixelFormat = MTLPixelFormat::RGBA8Unorm;
 const BYTES_PER_PIXELS: u64 = 4; // RGBA
 const COMPRESSION_METHOD: MTLIOCompressionMethod = MTLIOCompressionMethod::lz4;
-const FACE_RANGE: Range<u64> = 0..6;
+const FACE_IMAGES: [&'static [u8]; 6] = [
+    include_bytes!("cubemap_posx.png"),
+    include_bytes!("cubemap_negx.png"),
+    include_bytes!("cubemap_posy.png"),
+    include_bytes!("cubemap_negy.png"),
+    include_bytes!("cubemap_posz.png"),
+    include_bytes!("cubemap_negz.png"),
+];
 
-fn load_image_bytes_from_png() -> (Vec<u8>, (u64, u64)) {
-    let img = include_bytes!("./cubemap_negy.png");
-    let decoder = png::Decoder::new(img.as_ref());
+fn load_image_bytes_from_png(face_id: usize) -> (Vec<u8>, (u64, u64)) {
+    assert!(face_id < 6);
+    let img = FACE_IMAGES[face_id];
+    let decoder = png::Decoder::new(img);
     let (info, mut reader) = decoder
         .read_info()
         .expect("Failed to decode PNG information");
@@ -20,18 +27,38 @@ fn load_image_bytes_from_png() -> (Vec<u8>, (u64, u64)) {
 }
 
 fn main() {
-    let tmp_dir = std::env::temp_dir();
-    let tmp_raw_file_path = tmp_dir.join("temp-texture.raw");
-    let tmp_file_path = tmp_dir.join("temp-texture.lz4");
-    let tmp_file = tmp_file_path
-        .to_str()
-        .expect("Failed to create path to store temporary compressed data");
+    let asset_dir_name = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .expect("Failed to get epoch time (for temp asset directory)")
+        .as_millis()
+        .to_string();
+    let tmp_dir = std::env::temp_dir().join(asset_dir_name);
+    std::fs::create_dir(&tmp_dir).expect("Failed to create temp directory");
 
-    let (src_texture_bytes, (width, height)) = load_image_bytes_from_png();
-    println!("Write image bytes into {tmp_raw_file_path:?}");
-    std::fs::write(tmp_raw_file_path, &src_texture_bytes).expect("Failed to write raw image bytes");
+    let tmp_files = [0, 1, 2, 3, 4, 5].map(|face_id| {
+        tmp_dir
+            .join(format!("temp-texture-{face_id}.lz4"))
+            .to_str()
+            .expect("Failed to create path to store temporary compressed data")
+            .to_owned()
+    });
 
-    {
+    let mut width = 0;
+    let mut height = 0;
+    let mut all_src_texture_bytes = vec![];
+    for (face_id, tmp_file) in tmp_files.iter().enumerate() {
+        let (src_texture_bytes, (img_width, img_height)) = load_image_bytes_from_png(face_id);
+        assert!(
+            (width == 0 && img_width > 0) || (width == img_width),
+            "Width is invalid, must match other cube face textures"
+        );
+        assert!(
+            (height == 0 && img_height > 0) || (height == img_height),
+            "Height is invalid, must match other cube face textures"
+        );
+        width = img_width;
+        height = img_height;
+
         println!("Using MTLIO to write an image into a compressed file ({tmp_file:?})...");
         let io = IOCompression::new(
             tmp_file,
@@ -49,6 +76,7 @@ fn main() {
             "Failed to write compressed file"
         );
         println!("... write completed!");
+        all_src_texture_bytes.push(src_texture_bytes);
     }
 
     let device = Device::system_default().expect("No device found");
@@ -62,28 +90,35 @@ fn main() {
         device.new_texture(&desc)
     };
     {
-        println!(
-            "Using MTLIO to read a compressed file ({:?}) into texture...",
-            &tmp_file
-        );
-        let handle = device
-            .new_io_handle(
-                URL::new_with_string(&format!("file:///{tmp_file}")),
-                COMPRESSION_METHOD,
-            )
-            .expect("Failed to get IO file handle");
-        let queue = device
-            .new_io_command_queue(&IOCommandQueueDescriptor::new())
-            .expect("Failed to create IO Command Queue");
-        let command_buffer = queue.new_command_buffer();
         let width = texture.width();
         let height = texture.height();
         let depth = texture.depth();
         let total_bytes = height * width * BYTES_PER_PIXELS;
-        for i in FACE_RANGE {
+
+        let queue = {
+            let desc = IOCommandQueueDescriptor::new();
+            desc.set_max_commands_in_flight(6);
+            desc.set_max_command_buffer_count(1);
+            device
+                .new_io_command_queue(&desc)
+                .expect("Failed to create IO Command Queue")
+        };
+        let command_buffer = queue.new_command_buffer();
+        for (face_id, tmp_file) in tmp_files.iter().enumerate() {
+            println!(
+                "Using MTLIO to read a compressed file ({:?}) into texture...",
+                &tmp_file
+            );
+            let handle = device
+                .new_io_handle(
+                    URL::new_with_string(&format!("file:///{tmp_file}")),
+                    COMPRESSION_METHOD,
+                )
+                .expect("Failed to get IO file handle");
+
             command_buffer.load_texture(
                 &texture,
-                i,
+                face_id as _,
                 0,
                 MTLSize {
                     width,
@@ -108,9 +143,9 @@ fn main() {
     }
     {
         println!("Verifying texture contents match originally written image...");
-        let mut texture_bytes = vec![0_u8; src_texture_bytes.len()];
-        for i in FACE_RANGE {
-            println!("Verifiying face {i}");
+        for (face_id, src_texture_bytes) in all_src_texture_bytes.into_iter().enumerate() {
+            let mut texture_bytes = vec![0_u8; src_texture_bytes.len()];
+            println!("Verifiying face {face_id}");
             texture.get_bytes_in_slice(
                 texture_bytes.as_mut_ptr() as _,
                 width * BYTES_PER_PIXELS,
@@ -124,9 +159,16 @@ fn main() {
                     },
                 },
                 0,
-                i,
+                face_id as _,
             );
-            assert_eq!(&texture_bytes, &src_texture_bytes);
+            if &texture_bytes != &src_texture_bytes {
+                println!(
+                    "Cube texture face #{} contents are incorrect: {:?} {:?}",
+                    face_id,
+                    &texture_bytes[0..4],
+                    &src_texture_bytes[0..4],
+                );
+            }
         }
         println!("... contents verified!");
     }
