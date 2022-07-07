@@ -1,10 +1,10 @@
 #![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_array_assume_init)]
 use metal::*;
-use std::sync::{Arc, Mutex};
 
 const PIXEL_FORMAT: MTLPixelFormat = MTLPixelFormat::RGBA8Unorm;
 const BYTES_PER_PIXELS: u64 = 4; // RGBA
-const COMPRESSION_METHOD: MTLIOCompressionMethod = MTLIOCompressionMethod::lz4;
+const COMPRESSION_METHOD: MTLIOCompressionMethod = MTLIOCompressionMethod::lzfse;
 const FACE_IMAGES: [&'static [u8]; 6] = [
     include_bytes!("cubemap_posx.png"),
     include_bytes!("cubemap_negx.png"),
@@ -29,74 +29,64 @@ fn load_image_bytes_from_png(face_id: usize) -> (Vec<u8>, (u64, u64)) {
 }
 
 fn main() {
-    let asset_dir_name = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .expect("Failed to get epoch time (for temp asset directory)")
-        .as_millis()
-        .to_string();
-    let tmp_dir = std::env::temp_dir().join(&asset_dir_name);
+    let tmp_dir = std::env::temp_dir().join(
+        std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .expect("Failed to get epoch time (for temp asset directory)")
+            .as_millis()
+            .to_string(),
+    );
     println!(
-        "Writing cube face textures {}...",
+        "Writing cube face textures {} ...",
         tmp_dir.to_string_lossy()
     );
     let face_files: [String; 6] = {
         std::fs::create_dir(&tmp_dir).expect("Failed to create temp directory");
         [0, 1, 2, 3, 4, 5].map(|face_id| {
             tmp_dir
-                .join(format!("temp-texture-{face_id}.lz4"))
+                .join(format!("temp-texture-{face_id}.lzfse"))
                 .to_str()
                 .expect("Failed to create path to store temporary compressed data")
                 .to_owned()
         })
     };
 
-    let all_src_texture_bytes = debug_time("Write Cube Faces", || {
-        // TODO: START HERE
-        // TODO: START HERE
-        // TODO: START HERE
-        // Use std::thread::scope();
-        let all_src_texture_bytes = Arc::new(Mutex::<[(Vec<u8>, u64, u64); 6]>::new([
-            (vec![], 0, 0),
-            (vec![], 0, 0),
-            (vec![], 0, 0),
-            (vec![], 0, 0),
-            (vec![], 0, 0),
-            (vec![], 0, 0),
-        ]));
-        let mut handles = vec![];
-        for (face_id, face_file) in face_files.iter().enumerate() {
-            let face_file = face_file.to_owned();
-            let all_src_texture_bytes = Arc::clone(&all_src_texture_bytes);
-            handles.push(std::thread::spawn(move || {
-                let (src_texture_bytes, (img_width, img_height)) =
-                    debug_time("Read PNG", || load_image_bytes_from_png(face_id));
-                debug_time("MTLIO writing compressed texture", || {
-                    let io = IOCompression::new(
-                        &face_file,
-                        COMPRESSION_METHOD,
-                        IOCompression::default_chunk_size(),
-                    );
-                    io.append(
-                        src_texture_bytes.as_ptr() as _,
-                        src_texture_bytes.len() as _,
-                    );
-                    let io_flush_result = io.flush();
-                    assert_eq!(
-                        io_flush_result,
-                        MTLIOCompressionStatus::complete,
-                        "Failed to write compressed file"
-                    );
+    let mut all_src_texture_bytes: [std::mem::MaybeUninit<(Vec<u8>, u64, u64)>; 6] =
+        std::mem::MaybeUninit::uninit_array();
+    debug_time("Write Cube Faces", || {
+        std::thread::scope(|s| {
+            for (face_id, (face_file, t)) in face_files
+                .iter()
+                .zip(&mut all_src_texture_bytes)
+                .enumerate()
+            {
+                s.spawn(move || {
+                    let (src_texture_bytes, (img_width, img_height)) =
+                        debug_time("Read PNG", || load_image_bytes_from_png(face_id));
+                    debug_time("MTLIO writing compressed texture", || {
+                        let io = IOCompression::new(
+                            &face_file,
+                            COMPRESSION_METHOD,
+                            IOCompression::default_chunk_size(),
+                        );
+                        io.append(
+                            src_texture_bytes.as_ptr() as _,
+                            src_texture_bytes.len() as _,
+                        );
+                        let io_flush_result = io.flush();
+                        assert_eq!(
+                            io_flush_result,
+                            MTLIOCompressionStatus::complete,
+                            "Failed to write compressed file"
+                        );
+                    });
+                    t.write((src_texture_bytes, img_width, img_height));
                 });
-                all_src_texture_bytes.lock().unwrap()[face_id] =
-                    (src_texture_bytes, img_width, img_height);
-            }));
-        }
-        for handle in handles {
-            handle.join().expect("Load image did complete");
-        }
-        all_src_texture_bytes
+            }
+        })
     });
-    let all_src_texture_bytes = &*all_src_texture_bytes.lock().unwrap();
+    let all_src_texture_bytes: [(Vec<u8>, u64, u64); 6] =
+        unsafe { std::mem::MaybeUninit::array_assume_init(all_src_texture_bytes) };
 
     // Verify all cube face textures are the same dimensions
     let mut width = 0;
