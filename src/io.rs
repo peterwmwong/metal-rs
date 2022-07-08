@@ -263,11 +263,11 @@ impl IOCompression {
         chunk_size: NSUInteger,
     ) -> Self {
         let path = CString::new(path).expect("Could not create compatible string for path");
-        Self {
-            context: unsafe {
-                MTLIOCreateCompressionContext(path.as_ptr() as _, compression_type, chunk_size)
-            },
-        }
+        // TODO: Need to check if it's `nil`
+        let context = unsafe {
+            MTLIOCreateCompressionContext(path.as_ptr() as _, compression_type, chunk_size)
+        };
+        Self { context }
     }
 
     pub fn append(&self, bytes: *const std::ffi::c_void, length: NSUInteger) {
