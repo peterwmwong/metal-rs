@@ -98,6 +98,12 @@ impl CommandBufferRef {
         unsafe { msg_send![self, addCompletedHandler: block] }
     }
 
+    pub fn new_acceleration_structure_command_encoder(
+        &self,
+    ) -> &AccelerationStructureCommandEncoderRef {
+        unsafe { msg_send![self, accelerationStructureCommandEncoder] }
+    }
+
     pub fn new_blit_command_encoder(&self) -> &BlitCommandEncoderRef {
         unsafe { msg_send![self, blitCommandEncoder] }
     }

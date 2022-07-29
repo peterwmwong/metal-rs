@@ -819,6 +819,33 @@ impl RenderCommandEncoderRef {
     }
 }
 
+pub enum MTLAccelerationStructureCommandEncoder {}
+foreign_obj_type! {
+    type CType = MTLAccelerationStructureCommandEncoder;
+    pub struct AccelerationStructureCommandEncoder;
+    pub struct AccelerationStructureCommandEncoderRef;
+    type ParentType = CommandEncoderRef;
+}
+
+impl AccelerationStructureCommandEncoderRef {
+    pub fn build_acceleration_structure(
+        &self,
+        acceleration_structure: &AccelerationStructureRef,
+        descriptor: &AccelerationStructureDescriptorRef,
+        scratch_buffer: &BufferRef,
+        scratch_buffer_offset: NSUInteger,
+    ) {
+        unsafe {
+            msg_send![self,
+                buildAccelerationStructure: acceleration_structure
+                descriptor: descriptor
+                scratchBuffer: scratch_buffer
+                scratchBufferOffset: scratch_buffer_offset
+            ]
+        }
+    }
+}
+
 pub enum MTLBlitCommandEncoder {}
 
 foreign_obj_type! {
@@ -1011,6 +1038,19 @@ foreign_obj_type! {
 impl ComputeCommandEncoderRef {
     pub fn set_compute_pipeline_state(&self, state: &ComputePipelineStateRef) {
         unsafe { msg_send![self, setComputePipelineState: state] }
+    }
+
+    pub fn set_acceleration_structure(
+        &self,
+        acceleration_structure: Option<&AccelerationStructureRef>,
+        buffer_index: NSUInteger,
+    ) {
+        unsafe {
+            msg_send![self,
+                setAccelerationStructure:acceleration_structure
+                atBufferIndex:buffer_index
+            ]
+        }
     }
 
     pub fn set_buffer(&self, index: NSUInteger, buffer: Option<&BufferRef>, offset: NSUInteger) {

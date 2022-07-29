@@ -472,6 +472,7 @@ mod library;
 #[cfg(feature = "mps")]
 mod mps;
 mod pipeline;
+mod raytracing;
 mod renderpass;
 mod resource;
 mod sampler;
@@ -500,6 +501,7 @@ pub use {
     library::*,
     pipeline::*,
     renderpass::*,
+    raytracing::*,
     resource::*,
     sampler::*,
     texture::*,

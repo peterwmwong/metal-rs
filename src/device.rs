@@ -1931,6 +1931,18 @@ impl DeviceRef {
         }
     }
 
+    pub fn new_acceleration_structure(&self, size: NSUInteger) -> Option<AccelerationStructure> {
+        unsafe {
+            let ptr: *mut MTLAccelerationStructure =
+                msg_send![self, newAccelerationStructureWithSize: size];
+            if !ptr.is_null() {
+                Some(AccelerationStructure::from_ptr(ptr))
+            } else {
+                None
+            }
+        }
+    }
+
     pub fn new_buffer(&self, length: u64, options: MTLResourceOptions) -> Buffer {
         unsafe {
             msg_send![self, newBufferWithLength:length
@@ -2071,6 +2083,25 @@ impl DeviceRef {
 
     pub fn new_shared_event(&self) -> SharedEvent {
         unsafe { msg_send![self, newSharedEvent] }
+    }
+
+    pub fn acceleration_structure_sizes_with_descriptor(
+        &self,
+        descriptor: &AccelerationStructureDescriptorRef,
+    ) -> MTLAccelerationStructureSizes {
+        unsafe { msg_send![self, accelerationStructureSizesWithDescriptor: descriptor] }
+    }
+
+    pub fn heap_acceleration_structure_size_and_align(
+        &self,
+        descriptor: &PrimitiveAccelerationStructureDescriptorRef,
+    ) -> MTLSizeAndAlign {
+        unsafe {
+            msg_send![
+                self,
+                heapAccelerationStructureSizeAndAlignWithDescriptor: descriptor
+            ]
+        }
     }
 
     pub fn heap_buffer_size_and_align(

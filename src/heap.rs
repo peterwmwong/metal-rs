@@ -100,6 +100,18 @@ impl HeapRef {
         }
     }
 
+    pub fn new_acceleration_structure(&self, size: NSUInteger) -> Option<AccelerationStructure> {
+        unsafe {
+            let ptr: *mut MTLAccelerationStructure =
+                msg_send![self, newAccelerationStructureWithSize: size];
+            if !ptr.is_null() {
+                Some(AccelerationStructure::from_ptr(ptr))
+            } else {
+                None
+            }
+        }
+    }
+
     pub fn new_texture(&self, descriptor: &TextureDescriptorRef) -> Option<Texture> {
         unsafe {
             let ptr: *mut MTLTexture = msg_send![self, newTextureWithDescriptor: descriptor];
