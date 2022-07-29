@@ -224,6 +224,9 @@ pub enum MTLIOCompressionStatus {
 #[link(name = "Metal", kind = "framework")]
 extern "C" {
     // Available on macOS 13.0
+    fn MTLIOCompressionContextDefaultChunkSize() -> NSUInteger;
+
+    // Available on macOS 13.0
     fn MTLIOCreateCompressionContext(
         path: *const c_char,
         compression_type: MTLIOCompressionMethod,
@@ -247,14 +250,8 @@ pub struct IOCompression {
 
 #[allow(non_camel_case_types)]
 impl IOCompression {
-    // TODO: Re-implement once macOS 13/xcode 14 releases and API stabilizes
-    // - Currently...
-    //   - In Beta 2, NOT in Documentation: `public let kMTLIOCompressionContextDefaultChunkSize: Int`
-    //   - NOT in Beta 2, In Documentation: `size_t MTLIOCompressionContextDefaultChunkSize(void);`
-    //      - https://developer.apple.com/documentation/metal/4048349-mtliocompressioncontextdefaultch?language=objc
-    //   - HHHHahhahhaahahhhhh.......... whatevs
     pub fn default_chunk_size() -> NSUInteger {
-        65536
+        unsafe { MTLIOCompressionContextDefaultChunkSize() }
     }
 
     pub fn new(

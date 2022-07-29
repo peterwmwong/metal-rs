@@ -55,6 +55,7 @@ fn main() {
         std::mem::MaybeUninit::uninit_array();
     debug_time("Write Cube Faces", || {
         std::thread::scope(|s| {
+            let default_chunk_size = IOCompression::default_chunk_size();
             for (face_id, (face_file, t)) in face_files
                 .iter()
                 .zip(&mut all_face_texture_bytes_and_sizes)
@@ -64,11 +65,8 @@ fn main() {
                     let (face_texture_bytes, (img_width, img_height)) =
                         debug_time("Read PNG", || load_image_bytes_from_png(face_id));
                     debug_time("MTLIO writing compressed texture", || {
-                        let io = IOCompression::new(
-                            &face_file,
-                            COMPRESSION_METHOD,
-                            IOCompression::default_chunk_size(),
-                        );
+                        let io =
+                            IOCompression::new(&face_file, COMPRESSION_METHOD, default_chunk_size);
                         io.append(
                             face_texture_bytes.as_ptr() as _,
                             face_texture_bytes.len() as _,
