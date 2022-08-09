@@ -395,6 +395,19 @@ impl RenderCommandEncoderRef {
         }
     }
 
+    pub fn set_vertex_acceleration_structure(
+        &self,
+        index: NSUInteger,
+        accel_struct: Option<&AccelerationStructureRef>,
+    ) {
+        unsafe {
+            msg_send![self,
+                setVertexAccelerationStructure:accel_struct
+                atBufferIndex:index
+            ]
+        }
+    }
+
     // Specifying Resources for a Fragment Shader Function
 
     pub fn set_fragment_bytes(
@@ -511,6 +524,19 @@ impl RenderCommandEncoderRef {
                 lodMinClamp:lod_clamp.start
                 lodMaxClamp:lod_clamp.end
                 atIndex:index
+            ]
+        }
+    }
+
+    pub fn set_fragment_acceleration_structure(
+        &self,
+        index: NSUInteger,
+        accel_struct: Option<&AccelerationStructureRef>,
+    ) {
+        unsafe {
+            msg_send![self,
+                setFragmentAccelerationStructure:accel_struct
+                atBufferIndex:index
             ]
         }
     }
