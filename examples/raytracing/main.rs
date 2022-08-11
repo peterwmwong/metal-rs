@@ -2,8 +2,9 @@ use metal::{
     AccelerationStructureGeometryDescriptorRef, AccelerationStructureInstanceDescriptor,
     AccelerationStructureInstanceOptions, AccelerationStructureRef,
     AccelerationStructureTriangleGeometryDescriptor, Array, CompileOptions, Device, HeapDescriptor,
-    InstanceAccelerationStructureDescriptor, MTLAttributeFormat, MTLIndexType, MTLResourceOptions,
-    MTLSize, MTLSizeAndAlign, MTLStorageMode, PrimitiveAccelerationStructureDescriptor,
+    InstanceAccelerationStructureDescriptor, MTLAttributeFormat, MTLIndexType, MTLPackedFloat3,
+    MTLPackedFloat4x3, MTLResourceOptions, MTLSize, MTLSizeAndAlign, MTLStorageMode,
+    PrimitiveAccelerationStructureDescriptor,
 };
 
 fn main() {
@@ -89,7 +90,14 @@ fn main() {
     let as_instance_descriptor_buffer = device.new_buffer_with_data(
         (&AccelerationStructureInstanceDescriptor {
             // Identity Matrix (column major 4x3)
-            transformation_matrix: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.], [0., 0., 0.]],
+            transformation_matrix: MTLPackedFloat4x3 {
+                columns: [
+                    MTLPackedFloat3(1., 0., 0.),
+                    MTLPackedFloat3(0., 1., 0.),
+                    MTLPackedFloat3(0., 0., 1.),
+                    MTLPackedFloat3(0., 0., 0.),
+                ],
+            },
             options: AccelerationStructureInstanceOptions::None,
             mask: 0xFF,
             intersection_function_table_offset: 0,

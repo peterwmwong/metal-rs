@@ -150,29 +150,22 @@ bitflags! {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+pub struct MTLPackedFloat3(pub f32, pub f32, pub f32);
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
+pub struct MTLPackedFloat4x3 {
+    pub columns: [MTLPackedFloat3; 4],
+}
+
+#[repr(C)]
 pub struct AccelerationStructureInstanceDescriptor {
-    /**
-     * @brief Transformation matrix describing how to transform the bottom-level acceleration structure.
-     */
-    pub transformation_matrix: [[f32; 3]; 4],
-
-    /**
-     * @brief Instance options
-     */
+    pub transformation_matrix: MTLPackedFloat4x3,
     pub options: AccelerationStructureInstanceOptions,
-
-    /**
-     * @brief Instance mask used to ignore geometry during ray tracing
-     */
     pub mask: u32,
-
-    /**
-     * @brief Used to index into intersection function tables
-     */
     pub intersection_function_table_offset: u32,
-
-    /**
-     * @brief Acceleration structure index to use for this instance
-     */
     pub acceleration_structure_index: u32,
 }
