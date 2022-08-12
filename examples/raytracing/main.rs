@@ -1,8 +1,8 @@
 use metal::{
-    AccelerationStructureGeometryDescriptorRef, AccelerationStructureInstanceDescriptor,
-    AccelerationStructureInstanceOptions, AccelerationStructureRef,
+    AccelerationStructureGeometryDescriptorRef, AccelerationStructureRef,
     AccelerationStructureTriangleGeometryDescriptor, Array, CompileOptions, Device, HeapDescriptor,
-    InstanceAccelerationStructureDescriptor, MTLAttributeFormat, MTLIndexType, MTLPackedFloat3,
+    InstanceAccelerationStructureDescriptor, MTLAccelerationStructureInstanceDescriptor,
+    MTLAccelerationStructureInstanceOptions, MTLAttributeFormat, MTLIndexType, MTLPackedFloat3,
     MTLPackedFloat4x3, MTLResourceOptions, MTLSize, MTLSizeAndAlign, MTLStorageMode,
     PrimitiveAccelerationStructureDescriptor,
 };
@@ -46,6 +46,8 @@ fn main() {
     as_geo_tri.set_index_buffer_offset(0);
     as_geo_tri.set_index_type(index_type);
     as_geo_tri.set_triangle_count(1);
+    as_geo_tri.set_opaque(true);
+    as_geo_tri.set_label("Triangle Geometry Acceleration Structure");
 
     let as_primitive_desc = PrimitiveAccelerationStructureDescriptor::descriptor();
     as_primitive_desc.set_geometry_descriptors(Array::from_slice(&[
@@ -88,7 +90,7 @@ fn main() {
     as_instance_desc.set_instance_count(1);
 
     let as_instance_descriptor_buffer = device.new_buffer_with_data(
-        (&AccelerationStructureInstanceDescriptor {
+        (&MTLAccelerationStructureInstanceDescriptor {
             // Identity Matrix (column major 4x3)
             transformation_matrix: MTLPackedFloat4x3 {
                 columns: [
@@ -98,12 +100,12 @@ fn main() {
                     MTLPackedFloat3(0., 0., 0.),
                 ],
             },
-            options: AccelerationStructureInstanceOptions::None,
+            options: MTLAccelerationStructureInstanceOptions::None,
             mask: 0xFF,
             intersection_function_table_offset: 0,
             acceleration_structure_index: 0,
-        } as *const AccelerationStructureInstanceDescriptor) as *const _,
-        std::mem::size_of::<AccelerationStructureInstanceDescriptor>() as _,
+        } as *const MTLAccelerationStructureInstanceDescriptor) as *const _,
+        std::mem::size_of::<MTLAccelerationStructureInstanceDescriptor>() as _,
         MTLResourceOptions::StorageModeShared,
     );
     as_instance_desc.set_instance_descriptor_buffer(Some(&as_instance_descriptor_buffer));

@@ -7,6 +7,18 @@ foreign_obj_type! {
     pub struct AccelerationStructureGeometryDescriptorRef;
 }
 
+impl AccelerationStructureGeometryDescriptorRef {
+    pub fn set_opaque(&self, is_opaque: bool) {
+        unsafe { msg_send![self, setOpaque: is_opaque] }
+    }
+    pub fn set_label(&self, label: &str) {
+        unsafe {
+            let nslabel = crate::nsstring_from_str(label);
+            let () = msg_send![self, setLabel: nslabel];
+        }
+    }
+}
+
 pub enum MTLAccelerationStructureTriangleGeometryDescriptor {}
 foreign_obj_type! {
     type CType = MTLAccelerationStructureTriangleGeometryDescriptor;
@@ -140,7 +152,7 @@ impl InstanceAccelerationStructureDescriptorRef {
 }
 
 bitflags! {
-    pub struct AccelerationStructureInstanceOptions: u32 {
+    pub struct MTLAccelerationStructureInstanceOptions: u32 {
         const None = 0;
         const DisableTriangleCulling = (1 << 0);
         const TriangleFrontFacingWindingCounterClockwise = (1 << 1);
@@ -162,9 +174,9 @@ pub struct MTLPackedFloat4x3 {
 }
 
 #[repr(C)]
-pub struct AccelerationStructureInstanceDescriptor {
+pub struct MTLAccelerationStructureInstanceDescriptor {
     pub transformation_matrix: MTLPackedFloat4x3,
-    pub options: AccelerationStructureInstanceOptions,
+    pub options: MTLAccelerationStructureInstanceOptions,
     pub mask: u32,
     pub intersection_function_table_offset: u32,
     pub acceleration_structure_index: u32,
