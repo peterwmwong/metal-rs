@@ -2,9 +2,9 @@ use metal::{
     AccelerationStructureGeometryDescriptorRef, AccelerationStructureRef,
     AccelerationStructureTriangleGeometryDescriptor, Array, CompileOptions, Device, HeapDescriptor,
     InstanceAccelerationStructureDescriptor, MTLAccelerationStructureInstanceDescriptor,
-    MTLAccelerationStructureInstanceOptions, MTLAttributeFormat, MTLIndexType, MTLPackedFloat3,
-    MTLPackedFloat4x3, MTLResourceOptions, MTLSize, MTLSizeAndAlign, MTLStorageMode,
-    PrimitiveAccelerationStructureDescriptor,
+    MTLAccelerationStructureInstanceOptions, MTLAttributeFormat, MTLCommandBufferStatus,
+    MTLIndexType, MTLPackedFloat3, MTLPackedFloat4x3, MTLResourceOptions, MTLResourceUsage,
+    MTLSize, MTLSizeAndAlign, MTLStorageMode, PrimitiveAccelerationStructureDescriptor,
 };
 
 fn main() {
@@ -19,9 +19,9 @@ fn main() {
     // See Section 2.2.3 "Packed Vector Types", Table 2.4 https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf
     let tri_stride = 12;
     let tri: [f32; 9] = [
-        -1., -1., 10., /* 0 */
-        0., 1., 10., /* 1 */
-        1., -1., 10., /* 2 */
+        -1., -1., 1., /* 0 */
+        0., 1., 1., /* 1 */
+        1., -1., 1., /* 2 */
     ];
     let tri_buffer = device.new_buffer_with_data(
         (&tri as *const f32) as *const _,
@@ -75,6 +75,7 @@ fn main() {
     );
     let cmd_buf = cmd_queue.new_command_buffer();
     let encoder = cmd_buf.new_acceleration_structure_command_encoder();
+    encoder.use_heap(&heap_with_as_primitive);
     encoder.build_acceleration_structure(&as_primitive, &as_primitive_desc, &scratch_buffer, 0);
     encoder.end_encoding();
     cmd_buf.commit();
@@ -120,6 +121,7 @@ fn main() {
         .expect("Failed to allocate instance acceleration structure");
 
     let encoder = cmd_buf.new_acceleration_structure_command_encoder();
+    encoder.use_heap(&heap_with_as_primitive);
     encoder.build_acceleration_structure(&as_instance, &as_instance_desc, &scratch_buffer, 0);
     encoder.end_encoding();
     cmd_buf.commit();
@@ -128,9 +130,12 @@ fn main() {
     // ===========================
     // Performing Ray Intersection
     // ===========================
+    const INTERSECTION_RESULT_HIT: u32 = 1234;
+    const INTERSECTION_RESULT_MISS: u32 = 0;
     let lib = device
         .new_library_with_source(
-            r#"
+            &format!(
+                r#"
 #include <metal_stdlib>
 
 using namespace metal;
@@ -142,7 +147,7 @@ void main_kernel(
              instance_acceleration_structure   accelerationStructure [[buffer(0)]],
     constant float3                          & direction             [[buffer(1)]],
     device   uint                            * output                [[buffer(2)]]
-) {
+) {{
     raytracing::ray r;
     r.origin       = float3(0);
     r.direction    = normalize(direction);
@@ -152,13 +157,14 @@ void main_kernel(
     raytracing::intersector<raytracing::instancing, raytracing::triangle_data> inter;
     inter.assume_geometry_type( raytracing::geometry_type::triangle );
     auto intersection = inter.intersect( r, accelerationStructure, 0xFF );
-    if ( intersection.type == raytracing::intersection_type::triangle ) {
-        *output = 1234;
-    } else {
-        *output = 0;
-    }
-}
-    "#,
+    if ( intersection.type == raytracing::intersection_type::triangle ) {{
+        *output = {INTERSECTION_RESULT_HIT};
+    }} else {{
+        *output = {INTERSECTION_RESULT_MISS};
+    }}
+}}
+    "#
+            ),
             &CompileOptions::new(),
         )
         .expect("Failed to compile shader");
@@ -173,11 +179,7 @@ void main_kernel(
         .new_compute_pipeline_state_with_function(&main_kernel_fn)
         .expect("Failed to create compute pipeline");
 
-    for (expected_output_value, direction) in [
-        (1234, [0_f32, 0., 1.]),
-        (0, [1_f32, 0., 0.]),
-        (0, [0_f32, 1., 0.]),
-    ] {
+    let assert_ray_intersection = |is_hit: bool, direction: [f32; 3]| {
         let cmd_buf = cmd_queue.new_command_buffer();
         let encoder = cmd_buf.new_compute_command_encoder();
         encoder.set_acceleration_structure(Some(&as_instance), 0);
@@ -205,10 +207,50 @@ void main_kernel(
         cmd_buf.commit();
         cmd_buf.wait_until_completed();
         let output_value = unsafe { &*(output_buffer.contents() as *const u32) };
+        let expected_output_value = if is_hit {
+            INTERSECTION_RESULT_HIT
+        } else {
+            INTERSECTION_RESULT_MISS
+        };
         assert_eq!(
             &expected_output_value, output_value,
             "Unexpected output value for direction {direction:?}"
         );
+    };
+
+    assert_ray_intersection(true, [0_f32, 0., 1.]);
+    assert_ray_intersection(false, [1_f32, 0., 0.]);
+    assert_ray_intersection(false, [0_f32, 1., 0.]);
+    assert_ray_intersection(false, [1_f32, 0., 1.]);
+
+    // Verify refitting acceleration structure: move the instance right (translate x by 1.0)
+    {
+        unsafe {
+            let a: &mut MTLAccelerationStructureInstanceDescriptor =
+                &mut *(as_instance_descriptor_buffer.contents() as *mut _);
+            a.transformation_matrix = MTLPackedFloat4x3 {
+                columns: [
+                    MTLPackedFloat3(1., 0., 0.),
+                    MTLPackedFloat3(0., 1., 0.),
+                    MTLPackedFloat3(0., 0., 1.),
+                    MTLPackedFloat3(1., 0., 0.),
+                ],
+            };
+        };
+        let cmd_buf = cmd_queue.new_command_buffer();
+        let encoder = cmd_buf.new_acceleration_structure_command_encoder();
+        encoder.use_resource(&as_instance_descriptor_buffer, MTLResourceUsage::Read);
+        encoder.refit(&as_instance, &as_instance_desc, None, &scratch_buffer, 0);
+        encoder.end_encoding();
+        cmd_buf.commit();
+        cmd_buf.wait_until_completed();
+        assert_eq!(cmd_buf.status(), MTLCommandBufferStatus::Completed);
     }
+
+    assert_ray_intersection(false, [0_f32, 0., 1.]);
+    assert_ray_intersection(false, [1_f32, 0., 0.]);
+    assert_ray_intersection(false, [0_f32, 1., 0.]);
+    assert_ray_intersection(true, [1_f32, 0., 1.]);
+
     println!("Completed Successfully!");
 }

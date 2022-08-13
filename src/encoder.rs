@@ -870,6 +870,35 @@ impl AccelerationStructureCommandEncoderRef {
             ]
         }
     }
+    pub fn refit(
+        &self,
+        source_acceleration_structure: &AccelerationStructureRef,
+        descriptor: &AccelerationStructureDescriptorRef,
+        destination_acceleration_structure: Option<&AccelerationStructureRef>,
+        scratch_buffer: &BufferRef,
+        scratch_buffer_offset: NSUInteger,
+    ) {
+        unsafe {
+            msg_send![self,
+                refitAccelerationStructure: source_acceleration_structure
+                descriptor: descriptor
+                destination: destination_acceleration_structure
+                scratchBuffer: scratch_buffer
+                scratchBufferOffset: scratch_buffer_offset
+            ]
+        }
+    }
+    pub fn use_heap(&self, heap: &HeapRef) {
+        unsafe { msg_send![self, useHeap: heap] }
+    }
+    pub fn use_resource(&self, resource: &ResourceRef, usage: MTLResourceUsage) {
+        unsafe {
+            msg_send![self,
+                useResource: resource
+                usage: usage
+            ]
+        }
+    }
 }
 
 pub enum MTLBlitCommandEncoder {}
