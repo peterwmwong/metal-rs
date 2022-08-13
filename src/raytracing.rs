@@ -174,6 +174,8 @@ pub struct MTLPackedFloat4x3 {
 }
 
 #[repr(C)]
+#[derive(Copy, Clone, PartialEq)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub struct MTLAccelerationStructureInstanceDescriptor {
     pub transformation_matrix: MTLPackedFloat4x3,
     pub options: MTLAccelerationStructureInstanceOptions,
