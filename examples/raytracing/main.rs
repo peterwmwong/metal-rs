@@ -139,7 +139,6 @@ fn main() {
 #include <metal_stdlib>
 
 using namespace metal;
-
 using raytracing::instance_acceleration_structure;
 
 [[kernel]]
@@ -154,10 +153,10 @@ void main_kernel(
     r.min_distance = 0.1;
     r.max_distance = FLT_MAX;
 
-    raytracing::intersector<raytracing::instancing, raytracing::triangle_data> inter;
-    inter.assume_geometry_type( raytracing::geometry_type::triangle );
-    auto intersection = inter.intersect( r, accelerationStructure, 0xFF );
-    if ( intersection.type == raytracing::intersection_type::triangle ) {{
+    raytracing::intersector<raytracing::instancing> inter;
+    inter.assume_geometry_type(raytracing::geometry_type::triangle);
+    auto intersection = inter.intersect(r, accelerationStructure, 0xFF);
+    if (intersection.type == raytracing::intersection_type::triangle) {{
         *output = {INTERSECTION_RESULT_HIT};
     }} else {{
         *output = {INTERSECTION_RESULT_MISS};

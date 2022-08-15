@@ -49,7 +49,6 @@ impl AccelerationStructureTriangleGeometryDescriptorRef {
     pub fn set_vertex_stride(&self, stride: NSUInteger) {
         unsafe { msg_send![self, setVertexStride: stride] }
     }
-
     pub fn set_index_buffer(&self, buffer: Option<&BufferRef>) {
         unsafe { msg_send![self, setIndexBuffer: buffer] }
     }
@@ -59,15 +58,15 @@ impl AccelerationStructureTriangleGeometryDescriptorRef {
     pub fn set_index_type(&self, index_type: MTLIndexType) {
         unsafe { msg_send![self, setIndexType: index_type] }
     }
-
     pub fn set_triangle_count(&self, count: NSUInteger) {
         unsafe { msg_send![self, setTriangleCount: count] }
     }
-
-    // TODO: Implement
-    // vertexFormat: MTLAttributeFormat;
-    // transformationMatrixBuffer: MTLBuffer;
-    // transformationMatrixBufferOffset: NSUInteger;
+    pub fn set_transformation_matrix_buffer(&self, buffer: Option<&BufferRef>) {
+        unsafe { msg_send![self, setTransformationMatrixBuffer: buffer] }
+    }
+    pub fn set_transformation_matrix_buffer_offset(&self, offset: NSUInteger) {
+        unsafe { msg_send![self, setTransformationMatrixBufferOffset: offset] }
+    }
 }
 
 pub enum MTLAccelerationStructureDescriptor {}
