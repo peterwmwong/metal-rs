@@ -7,6 +7,9 @@ use metal::{
     MTLSize, MTLSizeAndAlign, MTLStorageMode, PrimitiveAccelerationStructureDescriptor,
 };
 
+const INTERSECTION_RESULT_HIT: u32 = 1234;
+const INTERSECTION_RESULT_MISS: u32 = 0;
+
 fn main() {
     let device = Device::system_default().expect("Failed to access Metal Device");
     let cmd_queue = device.new_command_queue();
@@ -37,6 +40,12 @@ fn main() {
         MTLResourceOptions::StorageModeShared,
     );
 
+    let primitive_data: u32 = INTERSECTION_RESULT_HIT;
+    let primitive_data_buffer = device.new_buffer_with_data(
+        (&primitive_data as *const u32) as *const _,
+        std::mem::size_of_val(&primitive_data) as _,
+        MTLResourceOptions::StorageModeShared,
+    );
     let as_geo_tri = AccelerationStructureTriangleGeometryDescriptor::descriptor();
     as_geo_tri.set_vertex_format(tri_format);
     as_geo_tri.set_vertex_buffer(Some(&tri_buffer));
@@ -48,6 +57,10 @@ fn main() {
     as_geo_tri.set_triangle_count(1);
     as_geo_tri.set_opaque(true);
     as_geo_tri.set_label("Triangle Geometry Acceleration Structure");
+    as_geo_tri.set_primitive_data_buffer(Some(&primitive_data_buffer));
+    as_geo_tri.set_primitive_data_buffer_offset(0);
+    as_geo_tri.set_primitive_data_element_size(std::mem::size_of_val(&primitive_data) as _);
+    as_geo_tri.set_primitive_data_stride(std::mem::size_of_val(&primitive_data) as _);
 
     let as_primitive_desc = PrimitiveAccelerationStructureDescriptor::descriptor();
     as_primitive_desc.set_geometry_descriptors(Array::from_slice(&[
@@ -130,8 +143,6 @@ fn main() {
     // ===========================
     // Performing Ray Intersection
     // ===========================
-    const INTERSECTION_RESULT_HIT: u32 = 1234;
-    const INTERSECTION_RESULT_MISS: u32 = 0;
     let lib = device
         .new_library_with_source(
             &format!(
@@ -157,7 +168,7 @@ void main_kernel(
     inter.assume_geometry_type(raytracing::geometry_type::triangle);
     auto intersection = inter.intersect(r, accelerationStructure, 0xFF);
     if (intersection.type == raytracing::intersection_type::triangle) {{
-        *output = {INTERSECTION_RESULT_HIT};
+        *output = *((const device unsigned int*) intersection.primitive_data);
     }} else {{
         *output = {INTERSECTION_RESULT_MISS};
     }}

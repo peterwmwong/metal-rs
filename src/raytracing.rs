@@ -17,6 +17,18 @@ impl AccelerationStructureGeometryDescriptorRef {
             let () = msg_send![self, setLabel: nslabel];
         }
     }
+    pub fn set_primitive_data_buffer(&self, v: Option<&BufferRef>) {
+        unsafe { msg_send![self, setPrimitiveDataBuffer: v] }
+    }
+    pub fn set_primitive_data_buffer_offset(&self, v: NSUInteger) {
+        unsafe { msg_send![self, setPrimitiveDataBufferOffset: v] }
+    }
+    pub fn set_primitive_data_element_size(&self, v: NSUInteger) {
+        unsafe { msg_send![self, setPrimitiveDataElementSize: v] }
+    }
+    pub fn set_primitive_data_stride(&self, v: NSUInteger) {
+        unsafe { msg_send![self, setPrimitiveDataStride: v] }
+    }
 }
 
 pub enum MTLAccelerationStructureTriangleGeometryDescriptor {}
