@@ -345,4 +345,7 @@ impl TextureRef {
                                                      slices:slices]
         }
     }
+
+    // TODO: Implement gpuResourceID
+    // - https://developer.apple.com/documentation/metal/mtltexture/3974102-gpuresourceid?language=objc
 }

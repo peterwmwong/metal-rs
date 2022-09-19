@@ -64,4 +64,7 @@ impl BufferRef {
     pub fn remove_all_debug_markers(&self) {
         unsafe { msg_send![self, removeAllDebugMarkers] }
     }
+
+    // TODO: Implement gpuAddress
+    // - https://developer.apple.com/documentation/metal/mtlbuffer/3929873-gpuaddress?language=objc
 }

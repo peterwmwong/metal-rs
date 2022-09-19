@@ -21,7 +21,8 @@ fn main() {
     // packed_float3 has a size of 12 bytes.
     // See Section 2.2.3 "Packed Vector Types", Table 2.4 https://developer.apple.com/metal/Metal-Shading-Language-Specification.pdf
     let tri_stride = 12;
-    let tri: [f32; 9] = [
+    let tri: [f32; 12] = [
+        7., 7., 7., /* random pad */
         -1., -1., 1., /* 0 */
         0., 1., 1., /* 1 */
         1., -1., 1., /* 2 */
@@ -33,14 +34,14 @@ fn main() {
     );
 
     let index_type = MTLIndexType::UInt16;
-    let indices: [u16; 3] = [0, 1, 2];
+    let indices: [u16; 3] = [1, 2, 3];
     let indices_buffer = device.new_buffer_with_data(
         (&indices as *const u16) as *const _,
         std::mem::size_of_val(&indices) as _,
         MTLResourceOptions::StorageModeShared,
     );
 
-    let primitive_data: u32 = INTERSECTION_RESULT_HIT;
+    let primitive_data: [u32; 3] = [INTERSECTION_RESULT_HIT, 7, 8];
     let primitive_data_buffer = device.new_buffer_with_data(
         (&primitive_data as *const u32) as *const _,
         std::mem::size_of_val(&primitive_data) as _,
