@@ -211,6 +211,9 @@ impl HeapDescriptorRef {
     pub fn resource_options(&self) -> MTLResourceOptions {
         unsafe { msg_send![self, resourceOptions] }
     }
+    pub fn set_resource_options(&self, options: MTLResourceOptions) {
+        unsafe { msg_send![self, setResourceOptions: options] }
+    }
 
     /// Only available on macos(10.15), ios(13.0)
     pub fn heap_type(&self) -> MTLHeapType {
