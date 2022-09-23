@@ -9,6 +9,11 @@ use super::*;
 
 use objc::runtime::{NO, YES};
 
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct MTLResourceID {
+    _impl: u64,
+}
+
 #[repr(u64)]
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -346,6 +351,7 @@ impl TextureRef {
         }
     }
 
-    // TODO: Implement gpuResourceID
-    // - https://developer.apple.com/documentation/metal/mtltexture/3974102-gpuresourceid?language=objc
+    pub fn gpu_resource_id(&self) -> MTLResourceID {
+        unsafe { msg_send![self, gpuResourceID] }
+    }
 }
